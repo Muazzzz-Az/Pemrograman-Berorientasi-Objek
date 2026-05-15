@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Phone, Mic, Navigation, FileText } from 'lucide-react';
+import api from '../utils/api';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function StudentDashboard() {
@@ -16,25 +17,46 @@ export default function StudentDashboard() {
   };
 
   const picuDarurat = () => {
-    // Pengambilan data GPS (Validasi Lokasi Fase 2)
+    // 1. Meminta paksa akses GPS ke perangkat (Laptop/HP)
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (posisi) => {
-          console.log(`Koordinat didapat: ${posisi.coords.latitude}, ${posisi.coords.longitude}`);
-          // TODO: Kirim data ke API Backend
-          setStatusDarurat('AKTIF');
+        async (posisi) => {
+          try {
+            // 2. Merakit data sesuai format @RequestParam di Spring Boot
+            const formData = new FormData();
+            formData.append('nim', user.nim);
+            formData.append('latitude', posisi.coords.latitude);
+            formData.append('longitude', posisi.coords.longitude);
+            formData.append('description', 'Sinyal SOS Darurat dikirim otomatis dari perangkat.');
+
+            // 3. Tembak ke Backend (Endpoint POST /api/reports/emergency)
+            await api.post('/reports/emergency', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            // 4. Ubah UI menjadi Darurat jika tembakan sukses
+            setStatusDarurat('DIKERAHKAN');
+            
+          } catch (error) {
+            console.error("Error Backend:", error.response?.data || error.message);
+            alert("Gagal mengirim laporan ke Server. Pastikan Backend berjalan.");
+            setStatusDarurat('AMAN');
+          }
         },
-        () => {
-          alert("Peringatan: Akses lokasi ditolak. Laporan tetap dikirim tanpa koordinat akurat.");
-          setStatusDarurat('AKTIF');
+        (error) => {
+          // Jika mahasiswa menolak klik "Allow Location" di browser
+          alert("Peringatan: Bantuan tidak dapat dikirim karena Anda menolak akses lokasi GPS!");
+          setStatusDarurat('AMAN');
+          setSedangMenghitung(false);
         }
       );
     } else {
-      setStatusDarurat('AKTIF');
+      alert("Browser Anda tidak mendukung pelacakan lokasi GPS.");
+      setStatusDarurat('AMAN');
     }
   };
 
-  const hentikanDarurat = () => {
+  const batalkanDarurat = () => {
     setStatusDarurat('AMAN');
     setSedangMenghitung(false);
   };

@@ -3,71 +3,67 @@ package com.safetrack.controller;
 import com.safetrack.model.Student;
 import com.safetrack.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import java.util.Map;
 
-/**
- * REST Controller untuk registrasi dan manajemen akun.
- */
 @RestController
 @RequestMapping("/api/users")
+@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
 
+    private final UserService userService;
+
     @Autowired
-    private UserService userService;
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
-    /**
-     * POST /api/users/register
-     * Daftar akun mahasiswa baru dengan upload KTM.
-     */
-    @PostMapping("/register")
-    public ResponseEntity<?> register(
-            @RequestParam String nim,
-            @RequestParam String fullName,
-            @RequestParam String email,
-            @RequestParam String password,
-            @RequestParam String faculty,
-            @RequestParam String studyProgram,
-            @RequestParam(required = false) MultipartFile ktmPhoto) {
+    public record LoginRequest(String nim, String password, String role) {}
+    public record RegisterRequest(String nim, String password, String fullName, String role) {}
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            Student student = userService.registerStudent(
-                    nim, fullName, email, password, faculty, studyProgram, ktmPhoto);
-            return ResponseEntity.ok("Registrasi berhasil. NIM: " + student.getNim());
+            if ("STUDENT".equals(request.role())) {
+                // Memanggil logika dari UserService
+                Student student = userService.authenticate(request.nim(), request.password());
+
+                return ResponseEntity.ok(Map.of(
+                        "nim", student.getNim(),
+                        "name", student.getFullName(),
+                        "role", "STUDENT"
+                ));
+            } else {
+                // Logika Darurat Sementara untuk Admin/Satgas
+                if ("admin123".equals(request.password())) {
+                    return ResponseEntity.ok(Map.of(
+                            "nim", request.nim(),
+                            "name", "Pusat Komando Satgas",
+                            "role", "ADMIN"
+                    ));
+                }
+                throw new IllegalArgumentException("Kredensial Admin tidak valid.");
+            }
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (IOException e) {
-            return ResponseEntity.internalServerError().body("Gagal upload KTM: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Terjadi kesalahan pada server."));
         }
     }
 
-    /**
-     * PUT /api/users/{nim}/verify
-     * Admin memverifikasi akun mahasiswa.
-     */
-    @PutMapping("/{nim}/verify")
-    public ResponseEntity<?> verify(@PathVariable String nim) {
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            Student student = userService.verifyStudent(nim);
-            return ResponseEntity.ok("Akun " + student.getFullName() + " berhasil diverifikasi");
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    /**
-     * GET /api/users/{nim}
-     * Ambil data mahasiswa berdasarkan NIM.
-     */
-    @GetMapping("/{nim}")
-    public ResponseEntity<?> getStudent(@PathVariable String nim) {
-        try {
-            Student student = userService.findByNim(nim);
-            return ResponseEntity.ok(student);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            // Memanggil logika penyimpanan asli ke Database H2
+            userService.registerSimple(request.nim(), request.fullName(), request.password());
+            return ResponseEntity.ok(Map.of("message", "Registrasi berhasil! Silakan Login."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Gagal mendaftarkan akun."));
         }
     }
 }
