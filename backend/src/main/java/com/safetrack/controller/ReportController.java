@@ -16,6 +16,7 @@ import java.io.IOException;
  */
 @RestController
 @RequestMapping("/api/reports")
+@CrossOrigin(origins = "http://localhost:5173") // Wajib untuk komunikasi antar port Vite dan Spring Boot
 public class ReportController {
 
     @Autowired
@@ -27,11 +28,11 @@ public class ReportController {
      */
     @PostMapping("/emergency")
     public ResponseEntity<?> createEmergencyReport(
-            @RequestParam String nim,
-            @RequestParam Double latitude,
-            @RequestParam Double longitude,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) MultipartFile media) {
+            @RequestParam("nim") String nim,
+            @RequestParam("latitude") Double latitude,
+            @RequestParam("longitude") Double longitude,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "media", required = false) MultipartFile media) {
         try {
             EmergencyReport report = reportService.createEmergencyReport(
                     nim, latitude, longitude, description, media);
@@ -49,10 +50,10 @@ public class ReportController {
      */
     @PostMapping("/followup")
     public ResponseEntity<?> createFollowUpReport(
-            @RequestParam String nim,
-            @RequestParam Long parentReportId,
-            @RequestParam String description,
-            @RequestParam(required = false) MultipartFile media) {
+            @RequestParam("nim") String nim,
+            @RequestParam("parentReportId") Long parentReportId,
+            @RequestParam("description") String description,
+            @RequestParam(value = "media", required = false) MultipartFile media) {
         try {
             FollowUpReport report = reportService.createFollowUpReport(
                     nim, parentReportId, description, media);
@@ -70,8 +71,8 @@ public class ReportController {
      */
     @PutMapping("/{id}/resolve")
     public ResponseEntity<?> resolveReport(
-            @PathVariable Long id,
-            @RequestParam boolean isEmergency) {
+            @PathVariable("id") Long id,
+            @RequestParam("isEmergency") boolean isEmergency) {
         try {
             reportService.resolveReport(id, isEmergency);
             return ResponseEntity.ok("Laporan berhasil diselesaikan");

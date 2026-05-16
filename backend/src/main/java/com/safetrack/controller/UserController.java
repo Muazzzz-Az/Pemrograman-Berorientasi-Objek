@@ -1,6 +1,8 @@
 package com.safetrack.controller;
 
+import com.safetrack.model.Admin;
 import com.safetrack.model.Student;
+import com.safetrack.service.AdminService;
 import com.safetrack.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,10 +17,12 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final AdminService adminService;
 
     @Autowired
-    public UserController(UserService userService) {
+    public UserController(UserService userService, AdminService adminService) {
         this.userService = userService;
+        this.adminService = adminService;
     }
 
     public record LoginRequest(String nim, String password, String role) {}
@@ -28,38 +32,36 @@ public class UserController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             if ("STUDENT".equals(request.role())) {
-                // Memanggil logika dari UserService
                 Student student = userService.authenticate(request.nim(), request.password());
-
                 return ResponseEntity.ok(Map.of(
                         "nim", student.getNim(),
                         "name", student.getFullName(),
                         "role", "STUDENT"
                 ));
             } else {
-                // Logika Darurat Sementara untuk Admin/Satgas
-                if ("admin123".equals(request.password())) {
-                    return ResponseEntity.ok(Map.of(
-                            "nim", request.nim(),
-                            "name", "Pusat Komando Satgas",
-                            "role", "ADMIN"
-                    ));
-                }
-                throw new IllegalArgumentException("Kredensial Admin tidak valid.");
+                Admin admin = adminService.authenticate(request.nim(), request.password());
+                return ResponseEntity.ok(Map.of(
+                        "nim", admin.getNim(),
+                        "name", admin.getFullName(),
+                        "role", "ADMIN"
+                ));
             }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Terjadi kesalahan pada server."));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Kesalahan server."));
         }
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         try {
-            // Memanggil logika penyimpanan asli ke Database H2
-            userService.registerSimple(request.nim(), request.fullName(), request.password());
-            return ResponseEntity.ok(Map.of("message", "Registrasi berhasil! Silakan Login."));
+            if ("STUDENT".equals(request.role())) {
+                userService.registerSimple(request.nim(), request.fullName(), request.password());
+            } else {
+                adminService.registerSimple(request.nim(), request.fullName(), request.password());
+            }
+            return ResponseEntity.ok(Map.of("message", "Registrasi " + request.role() + " berhasil! Silakan Login."));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
