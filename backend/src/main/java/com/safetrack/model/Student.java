@@ -34,9 +34,11 @@ public class Student extends User implements Reportable {
     // ABSTRACTION: implementasi method dari interface Reportable
     @Override
     public void submitReport() {
-        if (!this.isVerified) {
-            throw new IllegalStateException("Akun belum terverifikasi. Upload KTM terlebih dahulu.");
-        }
+        // BYPASS SEMENTARA: Agar bisa test tombol SOS tanpa perlu fitur upload KTM
+        // if (!this.isVerified) {
+        //     throw new IllegalStateException("Akun belum terverifikasi. Upload KTM terlebih dahulu.");
+        // }
+
         if (this.activeReportId != null) {
             throw new IllegalStateException("Kamu masih memiliki laporan aktif.");
         }

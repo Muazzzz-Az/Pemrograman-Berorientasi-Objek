@@ -29,11 +29,13 @@ export default function StudentDashboard() {
             formData.append('longitude', posisi.coords.longitude);
             formData.append('description', 'Sinyal SOS Darurat dikirim otomatis dari perangkat.');
 
-            // 3. Tembak ke Backend (Endpoint POST /api/reports/emergency)
+            // 3. Tembak ke Backend (Timpa aturan JSON dari api.js secara paksa)
             await api.post('/reports/emergency', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
             });
-
+            
             // 4. Ubah UI menjadi Darurat jika tembakan sukses
             setStatusDarurat('DIKERAHKAN');
             
